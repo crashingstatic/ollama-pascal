@@ -125,10 +125,12 @@ else()
         add_custom_target(ollama-llama-cpp-source)
     else()
         set(OLLAMA_LLAMA_CPP_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/llama_cpp-src")
+        # bonsai-ternary-port: kept in sync with llama/server/CMakeLists.txt's
+        # FetchContent_Declare -- see the comment there for why this points at
+        # prism-ml's fork instead of upstream ggml-org/llama.cpp.
         ExternalProject_Add(ollama-llama-cpp-source
-            GIT_REPOSITORY "https://github.com/ggml-org/llama.cpp.git"
+            GIT_REPOSITORY "https://github.com/PrismML-Eng/llama.cpp.git"
             GIT_TAG ${OLLAMA_LLAMA_CPP_GIT_TAG}
-            GIT_SHALLOW TRUE
             SOURCE_DIR ${OLLAMA_LLAMA_CPP_SOURCE_DIR}
             CONFIGURE_COMMAND ""
             BUILD_COMMAND ""

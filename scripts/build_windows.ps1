@@ -594,6 +594,15 @@ function cudaArm64ArchitectureArgs {
     return @()
 }
 
+function cudaArchitectureArgs {
+    if ($env:OLLAMA_CUDA_ARCHITECTURES) {
+        Write-Output "Overriding Windows CUDA architectures: $env:OLLAMA_CUDA_ARCHITECTURES"
+        return @("-DCMAKE_CUDA_ARCHITECTURES=$env:OLLAMA_CUDA_ARCHITECTURES")
+    }
+
+    return @()
+}
+
 function cudaCommon {
     param (
         [string]$cudaMajorVer,
@@ -610,9 +619,15 @@ function cudaCommon {
     if ($cuda) {
         # Build llama-server CUDA backend from upstream source
         Write-Output "Building llama-server CUDA v$cudaMajorVer backend $cuda"
+        # OLLAMA_CUDA_ARCHITECTURES switches to the *_user_arch preset (no baked-in
+        # arch list) so the override isn't fighting the default preset's cacheVariables.
         $preset = "llama_cuda_v$($cudaMajorVer)_windows"
+        $archArgs = cudaArchitectureArgs
+        if ($env:OLLAMA_CUDA_ARCHITECTURES) {
+            $preset = "llama_cuda_v$($cudaMajorVer)_user_arch"
+        }
         $cudaToolsetArgs = cudaCMakeArgs $cuda
-        $configureArgs = @("-S", "llama\server", "--preset", $preset) + $cudaToolsetArgs + @("--install-prefix", "$script:DIST_DIR")
+        $configureArgs = @("-S", "llama\server", "--preset", $preset) + $cudaToolsetArgs + $archArgs + @("--install-prefix", "$script:DIST_DIR")
         & cmake @configureArgs
         if ($LASTEXITCODE -ne 0) { exit($LASTEXITCODE)}
         & cmake --build "build\llama-server-cuda_v$cudaMajorVer" --config Release --parallel $script:JOBS

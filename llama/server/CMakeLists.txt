@@ -178,11 +178,19 @@ set(LLAMA_CURL OFF CACHE BOOL "" FORCE)
 set(LLAMA_OPENSSL OFF CACHE BOOL "" FORCE)
 set(LLAMA_SUBPROCESS OFF CACHE BOOL "" FORCE)
 
+# bonsai-ternary-port: pinned to prism-ml's llama.cpp fork (branch `prism`)
+# instead of upstream ggml-org/llama.cpp. This fork adds the PTQ1_0/PQ2_0
+# ternary ggml types, their CPU+CUDA (dp4a-based MMQ/MMVQ) kernels, and the
+# generic "prism.hadamard.*" GGUF-metadata-driven activation transform
+# (Fast Walsh-Hadamard, ggml_cuda_op_fwht) needed to run
+# prism-ml/Ternary-Bonsai-2-27B-gguf. See llama/README.md and the branch's
+# commit log for the diff-against-upstream analysis. GIT_SHALLOW is dropped
+# because a shallow fetch of an arbitrary fork commit (not a tag/branch tip
+# some hosts advertise) is not guaranteed to be fetchable shallowly.
 FetchContent_Declare(
     llama_cpp
-    GIT_REPOSITORY "https://github.com/ggml-org/llama.cpp.git"
+    GIT_REPOSITORY "https://github.com/PrismML-Eng/llama.cpp.git"
     GIT_TAG ${LLAMA_CPP_GIT_TAG}
-    GIT_SHALLOW TRUE
     ${_ollama_compat_patch_cmd}
 )
 FetchContent_MakeAvailable(llama_cpp)
