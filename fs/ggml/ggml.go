@@ -430,6 +430,8 @@ func (t TensorType) BlockSize() uint64 {
 		return 64
 	case TensorTypeQ1_0:
 		return 128
+	case TensorTypePQ2_0, TensorTypePTQ1_0:
+		return 128
 	default:
 		return 256
 	}
@@ -507,6 +509,12 @@ func (t TensorType) TypeSize() uint64 {
 		return 4 + blockSize/2
 	case TensorTypeQ1_0:
 		return 2 + blockSize/8
+	case TensorTypePQ2_0:
+		// ggml_half scale + 2 bits/element: 2 + 128/4
+		return 2 + blockSize/4
+	case TensorTypePTQ1_0:
+		// ggml_half scale + 24B qs (120 trits, 5/byte) + 2B qh (8 trits, 4/byte)
+		return 2 + 24 + 2
 	default:
 		return 0
 	}

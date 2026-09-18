@@ -292,6 +292,13 @@ const (
 	TensorTypeMXFP4
 	TensorTypeNVFP4
 	TensorTypeQ1_0
+
+	// prism-ml ternary types (ggml ids 142/143), group-128, one fp16 scale
+	// per 128-element block. See fs/gguf/tensor.go for the source-of-truth
+	// comment on these values (block_pq2_0 / block_ptq1_0 in
+	// PrismML-Eng/llama.cpp, this fork's pinned llama.cpp).
+	TensorTypePQ2_0  TensorType = 142
+	TensorTypePTQ1_0 TensorType = 143
 )
 
 // ParseTensorType parses the provided GGUF tensor type
@@ -420,6 +427,10 @@ func (t TensorType) String() string {
 		return "NVFP4"
 	case TensorTypeQ1_0:
 		return "Q1_0"
+	case TensorTypePQ2_0:
+		return "PQ2_0"
+	case TensorTypePTQ1_0:
+		return "PTQ1_0"
 	default:
 		return "unknown"
 	}

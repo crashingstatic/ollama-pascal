@@ -143,6 +143,14 @@ const (
 	tensorTypeIQ4_NL_4_4
 	tensorTypeIQ4_NL_4_8
 	tensorTypeIQ4_NL_8_8
+
+	// prism-ml ternary types (ggml ids 142/143 -- deliberately out of the
+	// contiguous mainline range to avoid colliding with future upstream
+	// additions). group-128 ternary, one fp16 scale per 128-element block.
+	// See ggml/src/ggml-common.h block_pq2_0 / block_ptq1_0 in
+	// PrismML-Eng/llama.cpp (this fork's pinned llama.cpp source).
+	TensorTypePQ2_0  TensorType = 142
+	TensorTypePTQ1_0 TensorType = 143
 )
 
 func (tt TensorType) NumBytes() float64 {
@@ -209,6 +217,12 @@ func (tt TensorType) typeSize() int64 {
 		return tt.blockSize()/8 + tt.blockSize()/16 + tt.blockSize()/32
 	case TensorTypeBF16:
 		return 2
+	case TensorTypePQ2_0:
+		// ggml_half scale + 2 bits/element: 2 + 128/4
+		return 2 + tt.blockSize()/4
+	case TensorTypePTQ1_0:
+		// ggml_half scale + 24B qs (120 trits, 5/byte) + 2B qh (8 trits, 4/byte)
+		return 2 + 24 + 2
 	default:
 		return 0
 	}
@@ -233,6 +247,8 @@ func (tt TensorType) blockSize() int64 {
 		TensorTypeQ8_1,
 		tensorTypeIQ4_NL:
 		return 32
+	case TensorTypePQ2_0, TensorTypePTQ1_0:
+		return 128
 	default:
 		return 256
 	}
@@ -318,6 +334,10 @@ func (tt TensorType) String() string {
 		return "iq4_nl_4_8"
 	case tensorTypeIQ4_NL_8_8:
 		return "iq4_nl_8_8"
+	case TensorTypePQ2_0:
+		return "pq2_0"
+	case TensorTypePTQ1_0:
+		return "ptq1_0"
 	default:
 		return "unknown"
 	}
