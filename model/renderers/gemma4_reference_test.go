@@ -861,6 +861,12 @@ func TestGemma4RendererMatchesReference(t *testing.T) {
 			// Multiple tool calls in one assistant round, with explicit thinking,
 			// tool_call_id resolution, out-of-order tool responses, and a final
 			// assistant continuation in the same model turn.
+			//
+			// The re-serialized thinking block intentionally omits the trailing
+			// newline before <channel|> that Google's published chat template
+			// injects here -- see the divergence documented next to
+			// TestGemma4RendererKnownJinja2Differences and
+			// https://github.com/ggml-org/llama.cpp/issues/28827.
 			name: "multiple_tool_calls_with_thinking_ids_and_continuation",
 			messages: []api.Message{
 				{Role: "system", Content: "You are a coding assistant."},
@@ -883,13 +889,14 @@ func TestGemma4RendererMatchesReference(t *testing.T) {
 			think: thinkTrue(),
 			expected: "<bos><|turn>system\n<|think|>\nYou are a coding assistant." + bashDeclRef + readDeclRef + "<turn|>\n" +
 				"<|turn>user\nList files, then read config.<turn|>\n" +
-				"<|turn>model\n<|channel>thought\nNeed the directory listing before reading the config.\n<channel|>" +
+				"<|turn>model\n<|channel>thought\nNeed the directory listing before reading the config.<channel|>" +
 				"<|tool_call>call:bash{command:" + q + "ls -la" + q + "}<tool_call|>" +
 				"<|tool_call>call:read{path:" + q + "config.json" + q + "}<tool_call|>" +
 				"<|tool_response>response:read{value:" + q + `{"debug": true}` + q + "}<tool_response|>" +
 				"<|tool_response>response:bash{value:" + q + "config.json\nmain.go" + q + "}<tool_response|>" +
 				"Config loaded.<turn|>\n" +
 				"<|turn>model\n",
+			skipJinja2: true,
 		},
 		{
 			// Thinking content in assistant history should be stripped
@@ -1906,6 +1913,30 @@ func TestGemma4RendererKnownJinja2Differences(t *testing.T) {
 			tools:          bashAndReadRefTools(),
 			wantJinjaFrag:  `response:read{value:<|"|>payload<|"|>}`,
 			wantRenderFrag: `response:unknown{value:<|"|>payload<|"|>}`,
+		},
+		{
+			// Google's published chat template re-serializes prior-turn thinking
+			// as '<|channel>thought\n' + thinking_text + '\n<channel|>', injecting
+			// a literal newline immediately before the closing tag that the model
+			// itself never generates. Feeding that out-of-distribution pattern
+			// back as context is the confirmed root cause of Gemma 4 spiraling
+			// into a runaway, never-closing thinking block on later turns of a
+			// multi-round tool-calling conversation:
+			// https://github.com/ggml-org/llama.cpp/issues/28827 (fix verified by
+			// the llama.cpp maintainer and the original reporter on 2026-09-14).
+			// We deliberately diverge from the reference template here and trim
+			// the trailing newline.
+			name: "thinking_history_no_trailing_newline_before_close",
+			messages: []api.Message{
+				{Role: "user", Content: "List files, then read config."},
+				{Role: "assistant", Thinking: "Need the directory listing before reading the config.", ToolCalls: []api.ToolCall{
+					{Function: api.ToolCallFunction{Name: "bash", Arguments: testArgs(map[string]any{"command": "ls -la"})}},
+				}},
+				{Role: "tool", ToolName: "bash", Content: "config.json\nmain.go"},
+			},
+			tools:          bashAndReadRefTools(),
+			wantJinjaFrag:  "<|channel>thought\nNeed the directory listing before reading the config.\n<channel|>",
+			wantRenderFrag: "<|channel>thought\nNeed the directory listing before reading the config.<channel|>",
 		},
 	}
 
