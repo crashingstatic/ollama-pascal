@@ -88,9 +88,20 @@ func (r *Gemma4Renderer) Render(messages []api.Message, tools []api.Tool, thinkV
 		}
 
 		if message.Role == "assistant" && message.Thinking != "" && i > lastUserIdx {
+			// Deliberately diverges from Google's published chat template, which
+			// re-serializes prior-turn thinking as
+			// '<|channel>thought\n' + thinking_text + '\n<channel|>' (a literal
+			// newline injected immediately before the closing tag that the model
+			// itself never generates). Re-feeding that out-of-distribution
+			// pattern as context is the confirmed root cause of Gemma 4 spiraling
+			// into a runaway, never-closing thinking block on subsequent turns of
+			// a multi-round tool-calling conversation -- see
+			// https://github.com/ggml-org/llama.cpp/issues/28827, where trimming
+			// the thinking text and dropping the trailing newline (verified by
+			// the llama.cpp maintainer and the original reporter) resolves it.
 			sb.WriteString("<|channel>thought\n")
-			sb.WriteString(message.Thinking)
-			sb.WriteString("\n<channel|>")
+			sb.WriteString(strings.TrimSpace(message.Thinking))
+			sb.WriteString("<channel|>")
 		}
 
 		if len(message.ToolCalls) > 0 {
